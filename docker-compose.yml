@@ -1,0 +1,140 @@
+version: "3.8"
+
+services:
+  # PostgreSQL Database (CloudNativeDB)
+  cloudnativedb:
+    image: postgres:15-alpine
+    container_name: cloudnative-db
+    environment:
+      POSTGRES_DB: cloudnativedb
+      POSTGRES_USER: cloudnativeuser
+      POSTGRES_PASSWORD: cloudnativepassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - cloudnativedb_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - cloudnative-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cloudnativeuser -d cloudnativedb"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Authentication Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    container_name: cloudnative-auth-service
+    ports:
+      - "8080:8080"
+    environment:
+      - AUTH_PORT=8080
+      - DB_HOST=cloudnativedb
+      - DB_PORT=5432
+      - DB_USER=cloudnativeuser
+      - DB_PASSWORD=cloudnativepassword
+      - DB_NAME=cloudnativedb
+      - JWT_SECRET=cloudnative-dev-jwt-secret-change-me
+    depends_on:
+      cloudnativedb:
+        condition: service_healthy
+    networks:
+      - cloudnative-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/api/v1/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # File Management Service
+  file-service:
+    build:
+      context: .
+      dockerfile: file-service/Dockerfile
+    container_name: cloudnative-file-service
+    ports:
+      - "8081:8081"
+    environment:
+      - FILE_PORT=8081
+      - DB_HOST=cloudnativedb
+      - DB_PORT=5432
+      - DB_USER=cloudnativeuser
+      - DB_PASSWORD=cloudnativepassword
+      - DB_NAME=cloudnativedb
+      - JWT_SECRET=cloudnative-dev-jwt-secret-change-me
+    volumes:
+      - file_uploads:/root/uploads
+    depends_on:
+      cloudnativedb:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    networks:
+      - cloudnative-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8081/api/v1/file-service/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # API Gateway (Nginx)
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: cloudnative-api-gateway
+    ports:
+      - "80:80"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      file-service:
+        condition: service_healthy
+    networks:
+      - cloudnative-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:80/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  cloudnativedb_data:
+    driver: local
+  file_uploads:
+    driver: local
+
+networks:
+  cloudnative-network:
+    driver: bridge

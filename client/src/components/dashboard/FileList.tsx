@@ -48,19 +48,19 @@ export const FileList = ({ files, onDeleteFile, loading }: Props) => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-gray-900 rounded-lg shadow-sm border border-gray-800 p-6">
         <div className="flex items-center justify-center py-8">
-          <Loader className="animate-spin h-8 w-8 text-blue-600" />
-          <span className="ml-3 text-gray-600">Loading files...</span>
+          <Loader className="animate-spin h-8 w-8 text-emerald-500" />
+          <span className="ml-3 text-gray-400">Loading files...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
+    <div className="bg-gray-900 rounded-lg shadow-sm border border-gray-800 p-4 md:p-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg md:text-xl font-semibold text-gray-900">
+        <h2 className="text-lg md:text-xl font-semibold text-white">
           Your Files
         </h2>
         <span className="text-sm text-gray-500">
@@ -71,12 +71,12 @@ export const FileList = ({ files, onDeleteFile, loading }: Props) => {
       {files.length === 0 ? (
         <div className="text-center py-8">
           <div className="text-6xl mb-4 justify-center flex">
-            <File className="text-gray-400 size-10" />
+            <File className="text-gray-600 size-10" />
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <h3 className="text-lg font-medium text-gray-200 mb-2">
             No files yet
           </h3>
-          <p className="text-gray-600">
+          <p className="text-gray-400">
             Upload your first file to get started!
           </p>
         </div>
@@ -85,15 +85,15 @@ export const FileList = ({ files, onDeleteFile, loading }: Props) => {
           {files.map((file) => (
             <div
               key={file.id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between p-3 md:p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors space-y-3 sm:space-y-0"
+              className="flex flex-col sm:flex-row sm:items-center justify-between p-3 md:p-4 border border-gray-800 rounded-lg hover:bg-gray-800/50 transition-colors space-y-3 sm:space-y-0"
             >
               <div className="flex items-center space-x-3 md:space-x-4 flex-1 min-w-0">
-                <div className="text-xl md:text-2xl flex-shrink-0">
+                <div className="text-xl md:text-2xl flex-shrink-0 text-gray-400">
                   <File />
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm md:text-base font-medium text-gray-900 truncate">
+                  <h3 className="text-sm md:text-base font-medium text-gray-200 truncate">
                     {file.display_name}
                   </h3>
                   <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs text-gray-500 mt-1">
@@ -111,12 +111,12 @@ export const FileList = ({ files, onDeleteFile, loading }: Props) => {
                       {format(new Date(file.created_at), 'MMM d, yyyy')}
                     </span>
                     {file.is_duplicate && (
-                      <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                      <span className="bg-amber-500/15 text-amber-400 px-2 py-1 rounded-full text-xs font-medium border border-amber-500/20">
                         Duplicate
                       </span>
                     )}
                     {file.is_private && (
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                      <span className="bg-emerald-500/15 text-emerald-400 px-2 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
                         Private
                       </span>
                     )}
@@ -124,12 +124,12 @@ export const FileList = ({ files, onDeleteFile, loading }: Props) => {
 
                   <div className="hidden sm:flex items-center gap-2 mt-1">
                     {file.is_duplicate && (
-                      <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                      <span className="bg-amber-500/15 text-amber-400 px-2 py-1 rounded-full text-xs font-medium border border-amber-500/20">
                         Duplicate
                       </span>
                     )}
                     {file.is_private && (
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                      <span className="bg-emerald-500/15 text-emerald-400 px-2 py-1 rounded-full text-xs font-medium border border-emerald-500/20">
                         Private
                       </span>
                     )}
@@ -142,7 +142,7 @@ export const FileList = ({ files, onDeleteFile, loading }: Props) => {
                   type="button"
                   onClick={() => handleDelete(file.id)}
                   disabled={deletingFiles.has(file.id)}
-                  className="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                  className="text-red-400 hover:text-red-300 p-2 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 cursor-pointer"
                   title="Delete file"
                 >
                   {deletingFiles.has(file.id) ? (

@@ -86,20 +86,20 @@ const UploadTracker = ({ onUploadSuccess }: Props) => {
     <div>
       {Object.keys(uploadProgress).length > 0 && (
         <div className="mt-4 space-y-2">
-          <h3 className="text-sm font-medium text-gray-900">
+          <h3 className="text-sm font-medium text-gray-200">
             Upload Progress:
           </h3>
           {Object.entries(uploadProgress).map(([fileName, progress]) => (
-            <div key={fileName} className="bg-gray-50 rounded-lg p-3">
+            <div key={fileName} className="bg-gray-800 rounded-lg p-3">
               <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-700 truncate flex-1 mr-4">
+                <span className="text-gray-300 truncate flex-1 mr-4">
                   {fileName}
                 </span>
-                <span className="text-gray-500">{progress}%</span>
+                <span className="text-gray-400">{progress}%</span>
               </div>
-              <div className="mt-1 bg-gray-200 rounded-full h-2">
+              <div className="mt-1 bg-gray-700 rounded-full h-2">
                 <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -109,20 +109,20 @@ const UploadTracker = ({ onUploadSuccess }: Props) => {
       )}
 
       {errors.general && (
-        <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-lg mt-3">
+        <div className="bg-red-900/30 border border-red-700/50 text-red-400 px-4 py-3 rounded-lg mt-3">
           {errors.general}
         </div>
       )}
 
       {Object.keys(errors).filter((key) => key !== 'general').length > 0 && (
         <div className="mt-3 space-y-2">
-          <h3 className="text-sm font-medium text-red-900">Upload Errors:</h3>
+          <h3 className="text-sm font-medium text-red-400">Upload Errors:</h3>
           {Object.entries(errors)
             .filter(([key]) => key !== 'general')
             .map(([fileName, error]) => (
               <div
                 key={fileName}
-                className="bg-red-50 border border-red-300 text-red-700 px-3 py-2 rounded text-sm"
+                className="bg-red-900/30 border border-red-700/50 text-red-400 px-3 py-2 rounded text-sm"
               >
                 <strong>{fileName}:</strong> {error}
               </div>
@@ -138,8 +138,8 @@ export const FileUpload = ({ onUploadSuccess }: Props) => {
 
   if (!token) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <p className="text-red-600">
+      <div className="bg-gray-900 rounded-lg shadow-sm border border-gray-800 p-6">
+        <p className="text-red-400">
           Authentication required. Please log in again.
         </p>
       </div>
@@ -160,28 +160,28 @@ export const FileUpload = ({ onUploadSuccess }: Props) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
-      <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
+    <div className="bg-gray-900 rounded-lg shadow-sm border border-gray-800 p-4 md:p-6">
+      <h2 className="text-lg md:text-xl font-semibold text-white mb-4">
         Upload Files
       </h2>
 
       <Uploady {...uploadyProps}>
         <UploadDropZone
-          onDragOverClassName="border-blue-500 bg-blue-50"
-          className="border-2 border-dashed rounded-lg p-6 md:p-8 text-center transition-colors border-gray-300 hover:border-gray-400"
+          onDragOverClassName="border-emerald-500 bg-emerald-500/10"
+          className="border-2 border-dashed rounded-lg p-6 md:p-8 text-center transition-colors border-gray-700 hover:border-gray-500"
         >
           <div className="space-y-3 md:space-y-4">
-            <div className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400">
+            <div className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-500">
               <Upload className="h-10 w-10 md:h-12 md:w-12" />
             </div>
 
             <div>
-              <p className="text-base md:text-lg font-medium text-gray-900">
+              <p className="text-base md:text-lg font-medium text-gray-200">
                 Upload your files
               </p>
-              <p className="text-sm text-gray-600 mt-2 px-2">
+              <p className="text-sm text-gray-400 mt-2 px-2">
                 Drag and drop files here, or{' '}
-                <UploadButton className="text-blue-600 hover:text-blue-800 font-medium bg-transparent border-none cursor-pointer p-0 underline">
+                <UploadButton className="text-emerald-400 hover:text-emerald-300 font-medium bg-transparent border-none cursor-pointer p-0 underline">
                   browse
                 </UploadButton>
               </p>

@@ -41,7 +41,8 @@ RUN mkdir -p /var/uploads && chmod 755 /var/uploads
 RUN mkdir -p /var/log/supervisor
 
 # Expose port 80 for the API gateway
-EXPOSE 80
+# Default port for Render (overridden by Render's PORT env var)
+ENV PORT=10000
 
-# Start supervisor which will manage nginx and both Go services
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Start: substitute PORT into nginx config, then launch supervisor
+CMD sh -c "envsubst '\$PORT' < /etc/nginx/nginx.conf > /etc/nginx/nginx.tmp.conf && mv /etc/nginx/nginx.tmp.conf /etc/nginx/nginx.conf && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"

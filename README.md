@@ -14,16 +14,16 @@ Cloud storage system built with Go microservices. Handles file uploads with SHA-
 
 ```
 ┌─────────┐      ┌──────────────┐      ┌──────────────┐
-│  React  │─────▶│ NGINX Gateway│─────▶│ Auth Service │──┐
+│  React  │──────│ NGINX Gateway│──────│ Auth Service │──┐
 │  Client │      │   (port 80)  │      │  (port 8080) │  │
 └─────────┘      │              │      └──────────────┘  │
                  │              │      ┌──────────────┐  │   ┌────────────┐
-                 │              │─────▶│ File Service │──┼──▶│ PostgreSQL │
+                 │              │──────│ File Service │──┼───│ PostgreSQL │
                  └──────────────┘      │  (port 8081) │  │   └────────────┘
                                        └──────────────┘  │
                                        ┌──────────────┐  │
-                                       │   db (shared  │──┘
-                                       │   models/cfg) │
+                                       │   db (shared │──┘
+                                       │  models/cfg) │
                                        └──────────────┘
 ```
 

@@ -1,278 +1,206 @@
-# CloudNative
+# SysStore
 
-A modern, scalable cloud storage platform built with microservices architecture. CloudNative provides secure file management, user authentication, and a responsive web interface, designed for high availability and performance.
+Cloud storage system built with Go microservices. Handles file uploads with SHA-256 deduplication, JWT auth, and an NGINX gateway tying everything together. React frontend on top.
 
-## Interfaces
+## What it does
 
-
-
-<br/>
-
-**[More Images](client/README.md)**
-
-## Overview
-
-CloudNative is a full-stack cloud storage solution that combines:
-
-- **Microservices Architecture**: Independent, scalable services
-- **Modern Frontend**: React-based responsive web application
-- **Secure Authentication**: JWT-based user management
-- **File Management**: Advanced file storage with deduplication
-- **Container-Ready**: Docker and Kubernetes deployment
-- **Production-Grade**: Load balancing, monitoring, and scaling
+- Users register, log in, and get a JWT. That token gates every file operation.
+- Files are hashed on upload (SHA-256). If the hash already exists in the DB, no duplicate is written to disk — a new `FileReference` is created pointing to the existing blob. Reference counting handles cleanup on delete.
+- MIME type validation catches mismatches between what the client declares and what the file actually contains.
+- NGINX sits in front, routes `/api/v1/auth/*` to the auth service and `/api/v1/files/*` to the file service. Rate limiting at 10 req/s with burst of 20.
+- Each service does graceful shutdown on SIGTERM.
 
 ## Architecture
 
-
-
-## Project Structure
-
 ```
-cloudnative/
-├── client/                     # React frontend application
-├── auth-service/              # User authentication microservice
-├── file-service/              # File management microservice
-├── db/                        # Shared database models and config
-├── api-gateway/               # NGINX-based API gateway
-├── k8s/                       # Kubernetes deployment manifests
-├── docker-compose.yml         # Local development setup
-├── Dockerfile                 # Container configuration
-├── Makefile                   # Build automation
-├── go.work                    # Go workspace configuration
-└── README.md                  # This file
+┌─────────┐      ┌──────────────┐      ┌──────────────┐
+│  React  │─────▶│ NGINX Gateway│─────▶│ Auth Service │──┐
+│  Client │      │   (port 80)  │      │  (port 8080) │  │
+└─────────┘      │              │      └──────────────┘  │
+                 │              │      ┌──────────────┐  │   ┌────────────┐
+                 │              │─────▶│ File Service │──┼──▶│ PostgreSQL │
+                 └──────────────┘      │  (port 8081) │  │   └────────────┘
+                                       └──────────────┘  │
+                                       ┌──────────────┐  │
+                                       │   db (shared  │──┘
+                                       │   models/cfg) │
+                                       └──────────────┘
 ```
 
-## Components
+## Project layout
 
-### Frontend Application
+```
+├── auth-service/        Go service — registration, login, JWT, profile
+│   └── pkg/
+│       ├── controllers/ request handlers
+│       ├── middlewares/  CORS, logging, JWT validation
+│       ├── routes/       route definitions
+│       └── utils/        JWT generation
+├── file-service/        Go service — upload, delete, list, storage stats
+│   └── pkg/
+│       ├── controllers/ request handlers
+│       ├── middlewares/  CORS, logging, auth middleware
+│       ├── routes/       route definitions
+│       └── utils/        SHA-256 hashing, MIME validation, dedup logic
+├── db/                  shared across services (Go workspace)
+│   ├── config/          DB connection, env helpers, migrations
+│   └── models/          User, File, FileReference, response types
+├── api-gateway/         NGINX configs + supervisord for prod
+├── client/              React 19 + TypeScript + Tailwind + Vite
+├── k8s/                 Kubernetes manifests (namespace, deployments, PVs, ingress)
+├── docker-compose.yml   local dev — spins up Postgres, both services, gateway
+├── Dockerfile           prod — multi-stage build, both Go binaries + NGINX in one image
+├── Makefile             build/run shortcuts
+└── go.work              Go workspace linking auth-service, file-service, db
+```
 
-**Tech**: React 19, TypeScript, Tailwind CSS, Vite
+## How deduplication works
 
-Modern, responsive web application providing the user interface for file management and authentication.
+1. On upload, the file contents are streamed through `sha256` to produce a hash.
+2. The DB is queried for a `File` row with that hash.
+3. **Hash exists →** skip writing to disk. Create a `FileReference` for the user pointing to the existing `File`. Mark it as duplicate. The `File`'s `reference_count` increments.
+4. **Hash is new →** write to `uploads/<hash>.<ext>`, create the `File` row, then create the `FileReference`.
+5. On delete, the `FileReference` is removed and `reference_count` decrements. When it hits zero, the physical file is deleted from disk and the `File` row is removed.
 
-- **Modern React**: Built with React 19 and TypeScript
-- **Responsive Design**: Mobile-first design with Tailwind CSS
-- **File Management**: file preview, and organization
-- **User Experience**: Real-time updates, loading states, and error handling
+There's also a check for the case where the same user uploads the same file twice — it just returns the existing reference without creating a duplicate.
 
-[Client Docs](client/README.md)
+## Running locally
 
-### Authentication Service
-
-**Tech**: Go
-
-Handles user registration, authentication, and profile management with secure JWT token generation.
-
-- **User Management**: Registration, login, and profile operations
-- **JWT Security**: Secure token generation and validation
-- **Password Security**: bcrypt encryption for password storage
-- **Database Integration**: PostgreSQL with GORM ORM
-
-[Auth Service Docs](auth-service/README.md)
-
-### File Service
-
-**Tech**: Go
-
-Manages file upload, storage, retrieval, and organization with advanced features like deduplication.
-
-- **File Operations**: Upload, delete, and organize files
-- **Deduplication**: SHA-256 based file deduplication for storage optimization
-- **Privacy Controls**: Public and private file visibility settings
-- **Storage Analytics**: Real-time storage statistics and usage tracking
-
-[File Service Docs](file-service/README.md)
-
-### Database Layer
-
-**Tech**: Go, GORM, PostgreSQL
-
-Shared database configuration, models, and utilities used across all microservices.
-
-- **Centralized Models**: User, File, and FileReference models
-- **Database Management**: Connection pooling, migrations, and configuration
-
-[Database Docs](db/README.md)
-
-### API Gateway
-
-**Tech**: NGINX
-
-High-performance reverse proxy that routes requests to appropriate microservices.
-
-- **Request Routing**: Intelligent routing to backend services
-- **Load Balancing**: Distribute traffic across service instances
-- **Security**: Rate limiting, CORS, and security headers
-
-[API Gateway Docs](api-gateway/README.md)
-
-### Kubernetes Deployment
-
-**Tech**: Kubernetes, Docker
-
-Kubernetes manifests for scalable deployment.
-
-- **Container Orchestration**: Complete Kubernetes deployment setup
-- **Development Tools**: Scripts for easy local development
-
-[Kubernetes Docs](k8s/README.md)
-
-### Containerised Services
-
-The file service, auth service and the api gateway is containerised using docker
-their images can be built locally or published under your own registry
-
-- **File service image**: cloudnative-file-service
-- **Auth service image**: cloudnative-auth-service
-- **API gateway image**: cloudnative-api-gateway
-
-## Quick Start
-
-### Prerequisites
-
-- **Docker & Docker Compose**: For containerized development
-- **Go**: Version 1.24+ (for backend development)
-- **Node.js**: Version 18+ (for frontend development)
-- **PostgreSQL**: Database server
-- **Kubernetes**: For production deployment (optional)
-
-### Local Development (Docker Compose)
+### With Docker Compose (recommended)
 
 ```bash
-# Clone the repository
 git clone https://github.com/lil-aditya/SysStore.git
 cd SysStore
 
-# Start all services
 docker-compose up -d
-
-# Check service status
-docker-compose ps
-
-# View logs
-docker-compose logs -f
 ```
 
-**Access Points:**
+This starts:
 
-- **Web Application**: http://localhost:5173
-- **API Gateway**: http://localhost:80
-- **Auth Service**: http://localhost:8080
-- **File Service**: http://localhost:8081
+| Service       | Port   |
+|---------------|--------|
+| React client  | `5173` |
+| NGINX gateway | `80`   |
+| Auth service  | `8080` |
+| File service  | `8081` |
+| PostgreSQL    | `5432` |
 
-### Manual Development Setup
+Health checks are built in — compose waits for Postgres to be ready before starting the Go services, and waits for both services before starting the gateway.
 
-#### 1. Database Setup
+### Without Docker
+
+You'll need Go 1.24+, Node 18+, and a running Postgres instance.
+
+**1. Database**
 
 ```bash
-# Start PostgreSQL
-docker run -d --name cloudnative-postgres \
+docker run -d --name sysstore-db \
   -e POSTGRES_DB=cloudnativedb \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=postgres \
   -p 5432:5432 postgres:15
 ```
 
-#### 2. Backend Services
+**2. Auth service**
 
 ```bash
-# Auth Service
 cd auth-service
-cp .env.example .env
-go mod download
-go run main.go
-
-# File Service (new terminal)
-cd file-service
-cp .env.example .env
-go mod download
-go run main.go
+cp .env.example .env    # edit DB creds if needed
+go run main.go          # starts on :8080
 ```
 
-#### 3. Frontend Application
+**3. File service** (separate terminal)
+
+```bash
+cd file-service
+cp .env.example .env
+go run main.go          # starts on :8081
+```
+
+**4. Frontend** (separate terminal)
 
 ```bash
 cd client
 npm install
-npm run dev
+npm run dev             # starts on :5173
 ```
 
-### Production Deployment (Kubernetes)
+Or use the Makefile:
+
+```bash
+make build              # compiles both Go services
+make run                # builds + runs both
+make auth-service       # run just auth
+make file-service       # run just file service
+```
+
+### Kubernetes
 
 ```bash
 cd k8s
-./scripts/deploy.sh
+./deploy-k8s.sh
 ```
 
-## API Documentation
+Manifests cover namespace, deployments, services, configmaps, secrets, persistent volumes, and ingress.
 
-### Authentication Endpoints
+## API
 
-```
-GET    /api/v1/health            # Service health check
-POST   /api/v1/auth/register     # User registration
-POST   /api/v1/auth/login        # User login
-GET    /api/v1/auth/profile      # Get user profile
-```
+### Auth — `auth-service:8080`
 
-### File Management Endpoints
+| Method | Endpoint                  | Auth | Description               |
+|--------|---------------------------|------|---------------------------|
+| GET    | `/api/v1/health`          | No   | Health check              |
+| POST   | `/api/v1/auth/register`   | No   | Create account, get JWT   |
+| POST   | `/api/v1/auth/login`      | No   | Login, get JWT            |
+| GET    | `/api/v1/auth/profile`    | Yes  | Get current user profile  |
 
-```
-GET    /api/v1/file-service/health            # Service health check
-POST   /api/v1/files/upload      # Upload file
-GET    /api/v1/files/{userID}    # Get user files
-DELETE /api/v1/files/{fileID}    # Delete file
-GET    /api/v1/users/storage-stats # Storage statistics
-```
+### Files — `file-service:8081`
 
-## Configuration
+| Method | Endpoint                          | Auth | Description                        |
+|--------|-----------------------------------|------|------------------------------------|
+| GET    | `/api/v1/file-service/health`     | No   | Health check                       |
+| POST   | `/api/v1/files/upload`            | Yes  | Upload file (multipart, 10MB max)  |
+| GET    | `/api/v1/files/{userID}`          | No   | List files for a user              |
+| DELETE | `/api/v1/files/{fileID}`          | Yes  | Delete a file reference            |
+| GET    | `/api/v1/users/storage-stats`     | Yes  | Storage usage + dedup stats        |
 
-### Environment Variables
+Upload response includes `was_duplicate`, `saved_bytes`, and current storage stats.
 
-Each service uses environment variables for configuration. Copy the `.env.example` files and customize:
+## Environment variables
 
 ```bash
-# Auth Service
-AUTH_PORT=8080
-JWT_SECRET=your-secret-key
-
-# File Service
-FILE_PORT=8081
-
-# Database
+# Both services
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=cloudnativedb
 DB_USER=postgres
 DB_PASSWORD=postgres
+JWT_SECRET=change-this
 
-# Production
-DATABASE_URL=db_url_from_cloud_db_provider
+# Auth
+AUTH_PORT=8080
+
+# File
+FILE_PORT=8081
+
+# Production (replaces individual DB vars)
+DATABASE_URL=postgres://...
 APP_MODE=production
-JWT_SECRET=your-secret-key
 ```
 
-### Production Configuration
+Copy `.env.example` in each service directory and fill in your values.
 
-For production deployment, update configuration in:
+## Tech stack
 
-- **Kubernetes**: `k8s/configmap.yaml` and `k8s/secrets.yaml`
-- **Docker Compose**: `docker-compose.prod.yml`
-
-## Contributing
-
-We welcome contributions! Please see our contributing guidelines:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b new-feature`)
-3. Commit your changes (`git commit -m 'feat (area): new feature'`)
-4. Test deployment in local cluster
-5. Push to the branch (`git push`)
-6. Open a Pull Request
+| Layer     | Tech                                            |
+|-----------|-------------------------------------------------|
+| Backend   | Go 1.24, gorilla/mux, GORM, bcrypt, godotenv    |
+| Frontend  | React 19, TypeScript, Tailwind CSS 4, Vite 7    |
+| Database  | PostgreSQL 15                                   |
+| Gateway   | NGINX with rate limiting + CORS                 |
+| Infra     | Docker, docker-compose, Kubernetes, supervisord  |
+| Tooling   | Biome (lint/format), Go workspaces               |
 
 ---
 
-<div align="center">
-<b>Made by <a href="https://github.com/lil-aditya">Aditya</a>
-</b>
-</div>
+Built by [Aditya](https://github.com/lil-aditya)

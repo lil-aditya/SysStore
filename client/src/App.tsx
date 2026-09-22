@@ -7,7 +7,7 @@ import {
   ProfilePage,
   RegisterPage,
 } from './pages';
-
+//verifying github actions
 export const App = () => {
   return (
     <Router>
